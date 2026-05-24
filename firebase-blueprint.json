@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "Deck": {
+      "title": "Deck",
+      "description": "A collection of flashcards",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "createdAt", "userId"]
+    },
+    "Card": {
+      "title": "Card",
+      "description": "A single flashcard with SRS data",
+      "type": "object",
+      "properties": {
+        "front": { "type": "string" },
+        "back": { "type": "string" },
+        "deckId": { "type": "string" },
+        "userId": { "type": "string" },
+        "repetition": { "type": "integer" },
+        "efactor": { "type": "number" },
+        "nextReview": { "type": "string", "format": "date-time" },
+        "lastReview": { "type": "string", "format": "date-time" }
+      },
+      "required": ["front", "back", "deckId", "userId", "repetition", "efactor", "nextReview"]
+    }
+  },
+  "firestore": {
+    "/decks/{deckId}": {
+      "schema": "Deck",
+      "description": "User created flashcard decks"
+    },
+    "/cards/{cardId}": {
+      "schema": "Card",
+      "description": "Individual cards within decks"
+    }
+  }
+}
+

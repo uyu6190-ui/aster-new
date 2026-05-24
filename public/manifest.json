@@ -1,0 +1,16 @@
+{
+  "name": "Aster",
+  "short_name": "Aster",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "description": "Systematic knowledge and linguistic mastery.",
+  "icons": [
+    {
+      "src": "https://www.image2url.com/r2/default/images/1776594968279-1222d516-2edd-40a8-98bd-c7ec9c62c4d6.jpeg?v=3",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
