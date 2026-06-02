@@ -477,12 +477,10 @@ export default function App() {
       setUser(u);
       setAuthLoading(false);
       if (!u) {
-        if (view !== 'auth') setView('auth');
+        setView((currentView) => currentView === 'auth' ? currentView : 'auth');
       } else {
         // Only redirect to dashboard if we are at the login screen
-        if (view === 'auth') {
-          setView('dashboard');
-        }
+        setView((currentView) => currentView === 'auth' ? 'dashboard' : currentView);
       }
     });
 
@@ -1396,36 +1394,21 @@ export default function App() {
           </AnimatePresence>
         </main>
 
-      {/* Diagnostict Tool / API Key Check */}
+      {/* Diagnostic Tool / Gemini Server Check */}
       {showLogs && (
         <div className="fixed bottom-4 left-4 z-[210]">
           <button 
               onClick={async () => {
                 try {
-                  const g = (window as any);
-                  const sources = [
-                    { name: 'window.process.env.GEMINI_API_KEY', val: g.process?.env?.GEMINI_API_KEY },
-                    { name: 'window.process.env.VITE_GEMINI_API_KEY', val: g.process?.env?.VITE_GEMINI_API_KEY },
-                    { name: 'import.meta.env.VITE_GEMINI_API_KEY', val: (import.meta as any).env?.VITE_GEMINI_API_KEY },
-                    { name: 'import.meta.env.GEMINI_API_KEY', val: (import.meta as any).env?.GEMINI_API_KEY },
-                    { name: 'process.env.GEMINI_API_KEY', val: process.env.GEMINI_API_KEY }
-                  ];
-                  
-                  addLog("DEBUG: Starting API Key Diagnostics...");
-                  let found = false;
-                  sources.forEach(s => {
-                    const val = s.val;
-                    const hasVal = typeof val === 'string' && val.trim() !== '' && val !== 'undefined' && val !== 'null';
-                    const hint = !hasVal ? "N/A" : (val.length > 8 ? `${val.substring(0, 4)}...${val.substring(val.length - 4)}` : "TOO_SHORT");
-                    addLog(`Source ${s.name}: ${hasVal ? 'OK' : 'FAIL'} (Len: ${val?.length || 0}, Hint: ${hint})`);
-                    if (hasVal && !val.includes('MY_GEMINI')) found = true;
+                  addLog("DEBUG: Checking Gemini server endpoint...");
+                  const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'status' })
                   });
-                  
-                  if (!found) {
-                    addLog("INFO: Primary sources empty. Using integrated fallback key.");
-                  } else {
-                    addLog("SUCCESS: At least one environmental source found.");
-                  }
+                  const result = await response.json();
+                  addLog(`Gemini endpoint: ${response.ok ? 'OK' : 'FAIL'} (${response.status})`);
+                  addLog(`Server API key configured: ${result?.data?.configured ? 'YES' : 'NO'}`);
                 } catch (e) {
                   addLog(`DEBUG: Diagnostics failed: ${e}`);
                 }
@@ -3223,18 +3206,6 @@ function GeneralSettings({ onBack, soundEnabled, setSoundEnabled, preferredVoice
   onLogout: () => void,
   user: User | null,
 }) {
-  const [apiKey, setApiKey] = useState('');
-  
-  useEffect(() => {
-    const g = (window as any);
-    const potentialKey = g.process?.env?.GEMINI_API_KEY || 
-                         g.process?.env?.VITE_GEMINI_API_KEY || 
-                         (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-                         (import.meta as any).env?.GEMINI_API_KEY || 
-                         "";
-    setApiKey(potentialKey === 'undefined' ? '' : potentialKey);
-  }, []);
-
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
