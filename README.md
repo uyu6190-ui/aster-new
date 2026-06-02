@@ -37,6 +37,8 @@ GEMINI_API_KEY=your_gemini_api_key
 
 Firebase config is read from `VITE_FIREBASE_*` variables first. If they are not set, the app falls back to `firebase-applet-config.json`.
 
+Gemini requests are handled by the server-side `/api/gemini` endpoint. Keep `GEMINI_API_KEY` as a server-only variable; do not add a `VITE_` prefix to it.
+
 For Vercel, set these Environment Variables in Project Settings:
 
 - `VITE_FIREBASE_API_KEY`
@@ -59,6 +61,16 @@ npm run dev
 ```
 
 The app will be available at `http://localhost:3000`.
+
+To check the Gemini server endpoint locally without exposing the key:
+
+```bash
+curl -s -X POST http://localhost:3000/api/gemini \
+  -H "Content-Type: application/json" \
+  -d '{"action":"status"}'
+```
+
+The response should show `"configured":true` when `GEMINI_API_KEY` is present in your local `.env` or Vercel environment.
 
 ### Production Build
 
