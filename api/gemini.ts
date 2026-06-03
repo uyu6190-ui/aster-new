@@ -1,4 +1,4 @@
-import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 type GeminiAction =
   | "status"
@@ -142,7 +142,6 @@ async function generateCardJson(prompt: string): Promise<ExtractedCard[]> {
     config: {
       responseMimeType: "application/json",
       responseSchema: cardSchema,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
     },
   });
 
@@ -185,9 +184,6 @@ async function transcribeImage(base64: string): Promise<string> {
         },
       ],
     },
-    config: {
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-    },
   });
 
   return response.text || "";
@@ -205,9 +201,6 @@ async function transcribeAudio(base64: string, mimeType: string): Promise<string
           text: "この音声を正確に文字起こししてください。英語と日本語が含まれる場合は両方を書き出してください。学習用カード作成の素材として使用します。",
         },
       ],
-    },
-    config: {
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
     },
   });
 
