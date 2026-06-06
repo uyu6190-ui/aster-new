@@ -1187,19 +1187,21 @@ export default function App() {
                   }
                   let filteredCards = cards.filter(c => c.deckId === selectedDeckId && !c.isArchived);
                   if (reviewFilter === 'again') {
-                    // keep all for now, handled below or already filtered
+                    filteredCards = filteredCards.filter(c => c.lastDifficulty === 'again');
                   } else if (reviewFilter === 'favorites') {
-                    filteredCards = filteredCards.filter(c => c.isFavorite);
+                    filteredCards = filteredCards.filter(c => c.isFavorite && isReviewableNow(c));
                   } else if (reviewFilter === 'due') {
-                    filteredCards = filteredCards.filter(c => new Date(c.nextReview) <= new Date());
+                    filteredCards = filteredCards.filter(isDue);
                   } else if (reviewFilter.startsWith('group-')) {
                     const groupIndex = parseInt(reviewFilter.split('-')[1], 10) - 1;
                     const deckInfo = decks.find(d => d.id === selectedDeckId);
-                    const cardsPerGroup = deckInfo?.cardsPerGroup || 30;
+                    const cardsPerGroup = deckInfo?.cardsPerGroup || DEFAULT_CARDS_PER_GROUP;
                     const sortedAllCards = [...filteredCards].sort((a,b) => (a.order ?? 0) - (b.order ?? 0) || new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
-                    filteredCards = sortedAllCards.slice(groupIndex * cardsPerGroup, (groupIndex + 1) * cardsPerGroup);
+                    filteredCards = sortedAllCards.slice(groupIndex * cardsPerGroup, (groupIndex + 1) * cardsPerGroup).filter(isReviewableNow);
+                  } else if (reviewFilter === 'all') {
+                    filteredCards = filteredCards.filter(isReviewableNow);
                   } else {
-                    filteredCards = filteredCards.filter(c => c.lastDifficulty === reviewFilter);
+                    filteredCards = filteredCards.filter(c => c.lastDifficulty === reviewFilter && isReviewableNow(c));
                   }
 
                   if (reviewOrientation === 'swapped') {
@@ -1792,6 +1794,9 @@ function Dashboard({ userStats, decks, cards, onStudy, onEdit, onOpenSettings, o
 
 // --- Session Preparation Component ---
 
+const DEFAULT_CARDS_PER_GROUP = 45;
+const isReviewableNow = (card: Card) => card.lastDifficulty === 'again' || isDue(card);
+
 function SessionPreparation({ deck, cards, orientation, category, shuffle, onConfigChange, onStart, onCancel, onUpdateDeckGroupSize, onShuffleGroups }: { 
   deck: Deck, 
   cards: Card[], 
@@ -1806,16 +1811,17 @@ function SessionPreparation({ deck, cards, orientation, category, shuffle, onCon
 }) {
   const [masteryMode, setMasteryMode] = useState(false);
   const [isEditingGroupSize, setIsEditingGroupSize] = useState(false);
-  const [tempGroupSize, setTempGroupSize] = useState(deck.cardsPerGroup?.toString() || '30');
+  const [tempGroupSize, setTempGroupSize] = useState(deck.cardsPerGroup?.toString() || DEFAULT_CARDS_PER_GROUP.toString());
+  const reviewableCards = cards.filter(isReviewableNow);
   
   const stats = {
     due: cards.filter(isDue).length,
-    all: cards.length,
-    favorites: cards.filter(c => c.isFavorite).length,
+    all: reviewableCards.length,
+    favorites: reviewableCards.filter(c => c.isFavorite).length,
     again: cards.filter(c => c.lastDifficulty === 'again').length,
-    hard: cards.filter(c => c.lastDifficulty === 'hard').length,
-    good: cards.filter(c => c.lastDifficulty === 'good').length,
-    easy: cards.filter(c => c.lastDifficulty === 'easy').length,
+    hard: reviewableCards.filter(c => c.lastDifficulty === 'hard').length,
+    good: reviewableCards.filter(c => c.lastDifficulty === 'good').length,
+    easy: reviewableCards.filter(c => c.lastDifficulty === 'easy').length,
   };
 
   const Option = ({ id, label, count, icon: Icon, color }: any) => (
@@ -1915,7 +1921,7 @@ function SessionPreparation({ deck, cards, orientation, category, shuffle, onCon
       <div className="space-y-6">
         <div className="border-b border-black/5 pb-4 flex items-center justify-between flex-wrap gap-4">
           <h3 className="text-[10px] uppercase tracking-[0.4em] font-bold text-black/30">
-            Daily Checkpoint Groups ({deck.cardsPerGroup || 30} cards/group)
+            Daily Checkpoint Groups ({deck.cardsPerGroup || DEFAULT_CARDS_PER_GROUP} cards/group)
           </h3>
           
           <div className="flex items-center gap-2 flex-wrap">
@@ -1967,7 +1973,7 @@ function SessionPreparation({ deck, cards, orientation, category, shuffle, onCon
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(() => {
-            const cardsPerGroup = deck.cardsPerGroup || 30;
+            const cardsPerGroup = deck.cardsPerGroup || DEFAULT_CARDS_PER_GROUP;
             const sortedAllCards = [...cards].sort((a,b) => (a.order ?? 0) - (b.order ?? 0) || new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
             const groups = [];
             for (let i = 0; i < sortedAllCards.length; i += cardsPerGroup) {
@@ -1978,15 +1984,17 @@ function SessionPreparation({ deck, cards, orientation, category, shuffle, onCon
             }
             return groups.map(g => {
               const masterCount = g.cards.filter(c => c.lastDifficulty === 'easy' || (c.repetition && c.repetition > 1)).length;
+              const reviewableCount = g.cards.filter(isReviewableNow).length;
               const rate = Math.round((masterCount / g.cards.length) * 100);
               return (
                 <button
                   key={g.index}
                   onClick={() => onStart(`group-${g.index}`, masteryMode)}
-                  className="bg-white border border-black/10 p-6 flex flex-col items-center justify-center hover:border-black transition-all hover:bg-black/5 active:scale-95 group"
+                  disabled={reviewableCount === 0}
+                  className="bg-white border border-black/10 p-6 flex flex-col items-center justify-center hover:border-black transition-all hover:bg-black/5 active:scale-95 group disabled:opacity-20 disabled:grayscale"
                 >
                   <span className="text-xl font-serif italic font-bold">Group {g.index}</span>
-                  <span className="text-[10px] uppercase tracking-widest text-black/40 mt-1">{g.cards.length} cards</span>
+                  <span className="text-[10px] uppercase tracking-widest text-black/40 mt-1">{reviewableCount}/{g.cards.length} ready</span>
                   <div className="w-full mt-4 h-1 bg-black/10 rounded overflow-hidden">
                     <div className="h-full bg-green-500" style={{ width: `${rate}%` }} />
                   </div>
@@ -2078,6 +2086,7 @@ function ReviewSession({
 
   const isAgainBatchMode = reviewFilter === 'again';
   const BATCH_SIZE = 5;
+  const AGAIN_REINSERT_SPACING = 5;
 
   // Initialize once
   useEffect(() => {
@@ -2104,7 +2113,8 @@ function ReviewSession({
   }, [initialCards]);
 
   // Drive current card from sessionCards (stable)
-  const isBottlenecked = session.learningIds.size > 0 && !isAgainBatchMode;
+  const backlogCount = session.learningIds.size;
+  const isBottlenecked = backlogCount >= AGAIN_REINSERT_SPACING && !isAgainBatchMode;
   const currentCardId = isAgainBatchMode 
     ? (session.activeBatch.length > 0 ? session.activeBatch[0] : null) 
     : (session.queue.length > 0 ? session.queue[0] : null);
@@ -2224,7 +2234,7 @@ function ReviewSession({
         if (idx !== -1) {
           nextQueue.splice(idx, 1);
           // Standard SRS intensive mode: insert shortly. Mastery mode: insert further back or end
-          const reinsertPos = diff === 'again' ? Math.min(nextQueue.length, 2) : Math.min(nextQueue.length, 5);
+          const reinsertPos = diff === 'again' ? Math.min(nextQueue.length, AGAIN_REINSERT_SPACING) : Math.min(nextQueue.length, 5);
           nextQueue.splice(reinsertPos, 0, cardIdToProcess);
         }
       } else {
@@ -2322,7 +2332,7 @@ function ReviewSession({
               {isBottlenecked && (
                 <div className="flex items-center gap-2 text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 border border-amber-200">
                   <Zap size={10} className="fill-current" />
-                  KNOWLEDGE BOTTLENECK: CLEAR BACKLOG
+                  KNOWLEDGE BOTTLENECK: CLEAR BACKLOG ({backlogCount})
                 </div>
               )}
               <span className="text-[10px] font-medium text-black/40 uppercase tracking-widest">
@@ -2442,7 +2452,7 @@ function ReviewSession({
             
             <div className="w-full grid grid-cols-4 gap-px bg-[#fdfbf7]/10 border border-[#fdfbf7]/10 mt-auto" onClick={(e) => e.stopPropagation()}>
               {[
-                { id: 'again', label: 'Again', desc: '1m' },
+                { id: 'again', label: 'Again', desc: '5 cards' },
                 { id: 'hard', label: 'Hard', desc: '6m' },
                 { id: 'good', label: 'Good', desc: '15m' },
                 { id: 'easy', label: 'Easy', desc: '4d' },
